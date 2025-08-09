@@ -1,0 +1,41 @@
+{
+  "timestamp": "2025-08-09 23:13:58",
+  "total_tests": 8,
+  "passed_tests": 2,
+  "success_rate": 25.0,
+  "grade": "需要修复",
+  "results": [
+    {
+      "test": "后端依赖验证",
+      "success": false
+    },
+    {
+      "test": "后端模块导入",
+      "success": false
+    },
+    {
+      "test": "后端安装验证",
+      "success": false
+    },
+    {
+      "test": "前端安装验证",
+      "success": true
+    },
+    {
+      "test": "前端构建测试",
+      "success": true
+    },
+    {
+      "test": "系统健康检查",
+      "success": false
+    },
+    {
+      "test": "端到端功能测试",
+      "success": false
+    },
+    {
+      "test": "性能基准测试",
+      "success": false
+    }
+  ]
+}
