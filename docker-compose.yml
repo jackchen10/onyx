@@ -1,0 +1,231 @@
+version: '3.8'
+
+services:
+  # PostgreSQL数据库
+  postgres:
+    image: postgres:14-alpine
+    container_name: onyx-postgres
+    environment:
+      POSTGRES_DB: onyx
+      POSTGRES_USER: onyx_user
+      POSTGRES_PASSWORD: onyx_password
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - onyx-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U onyx_user -d onyx"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Redis缓存
+  redis:
+    image: redis:7-alpine
+    container_name: onyx-redis
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - onyx-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # 后端API服务
+  api-backend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend
+    container_name: onyx-api
+    environment:
+      - DATABASE_URL=postgresql://onyx_user:onyx_password@postgres:5432/onyx
+      - REDIS_URL=redis://redis:6379/0
+      - MODEL_SERVER_URL=http://model-server:9000
+      - PYTHONPATH=/app
+      - LOG_LEVEL=INFO
+    volumes:
+      - app_logs:/app/logs
+      - ./backend/.env:/app/.env:ro
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - onyx-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  # AI模型服务
+  model-server:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.model-server
+    container_name: onyx-model-server
+    environment:
+      - REDIS_URL=redis://redis:6379/1
+      - MODEL_CACHE_DIR=/app/model_cache
+      - PYTHONPATH=/app
+    volumes:
+      - model_cache:/app/model_cache
+      - app_logs:/app/logs
+    ports:
+      - "9000:9000"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - onyx-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+        reservations:
+          cpus: '1.0'
+          memory: 1G
+
+  # Celery Worker
+  celery-worker:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.worker
+    container_name: onyx-worker
+    environment:
+      - DATABASE_URL=postgresql://onyx_user:onyx_password@postgres:5432/onyx
+      - REDIS_URL=redis://redis:6379/0
+      - PYTHONPATH=/app
+      - C_FORCE_ROOT=1
+    volumes:
+      - app_logs:/app/logs
+      - ./backend/.env:/app/.env:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - onyx-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+  # 前端Web服务
+  web-frontend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web
+    container_name: onyx-web
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8080
+      - NODE_ENV=production
+    ports:
+      - "3000:80"
+    depends_on:
+      - api-backend
+    networks:
+      - onyx-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+
+  # Nginx反向代理
+  nginx-proxy:
+    image: nginx:alpine
+    container_name: onyx-nginx
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./docker/nginx/ssl:/etc/nginx/ssl:ro
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - web-frontend
+      - api-backend
+    networks:
+      - onyx-network
+      - public-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+
+# 数据卷定义
+volumes:
+  postgres_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/postgres
+  redis_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/redis
+  app_logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./logs
+  model_cache:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/model_cache
+
+# 网络定义
+networks:
+  onyx-network:
+    driver: bridge
+    internal: false
+  public-network:
+    driver: bridge

@@ -1,0 +1,70 @@
+# 多阶段构建 - 依赖安装阶段
+FROM python:3.11-slim as dependencies
+
+WORKDIR /app
+
+# 安装系统依赖
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    libffi-dev \
+    libssl-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# 升级pip
+RUN pip install --no-cache-dir --upgrade pip
+
+# 复制requirements文件
+COPY backend/requirements/ ./requirements/
+
+# 安装Python依赖
+RUN pip install --no-cache-dir -r requirements/default.txt
+
+# 生产阶段
+FROM python:3.11-slim as production
+
+WORKDIR /app
+
+# 安装运行时依赖
+RUN apt-get update && apt-get install -y \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# 从依赖阶段复制已安装的包
+COPY --from=dependencies /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=dependencies /usr/local/bin /usr/local/bin
+
+# 复制模型服务相关文件
+COPY backend/model_server/ ./model_server/
+COPY backend/onyx/llm/ ./onyx/llm/
+COPY backend/onyx/utils/ ./onyx/utils/
+COPY backend/onyx/configs/ ./onyx/configs/
+
+# 创建必要的目录
+RUN mkdir -p /app/model_cache /app/logs
+
+# 创建非root用户
+RUN groupadd -r app && useradd -r -g app app
+
+# 设置文件权限
+RUN chown -R app:app /app
+
+# 切换到非root用户
+USER app
+
+# 设置环境变量
+ENV PYTHONPATH=/app
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV MODEL_CACHE_DIR=/app/model_cache
+
+# 暴露端口
+EXPOSE 9000
+
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:9000/health || exit 1
+
+# 启动模型服务
+CMD ["python", "-m", "model_server.main"]
