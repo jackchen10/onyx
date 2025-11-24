@@ -1,0 +1,236 @@
+services:
+  api_server:
+    image: onyxdotapp/onyx-backend:${IMAGE_TAG:-latest}
+    build:
+      context: ../../backend
+      dockerfile: Dockerfile
+    command: >
+      /bin/sh -c "alembic upgrade head && echo \"Starting Onyx Api Server\" && uvicorn onyx.main:app --host 0.0.0.0 --port 8080"
+    depends_on:
+      - relational_db
+      - index
+      - cache
+      - inference_model_server
+      - minio
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      # Auth Settings
+      - AUTH_TYPE=disabled
+      # Gen AI Settings - DeepSeek API
+      - GEN_AI_API_KEY=sk-566706aa2350423b8751a5380444b227
+      - GEN_AI_MAX_TOKENS=${GEN_AI_MAX_TOKENS:-}
+      - QA_TIMEOUT=${QA_TIMEOUT:-}
+      - MAX_CHUNKS_FED_TO_CHAT=${MAX_CHUNKS_FED_TO_CHAT:-}
+      - DISABLE_LLM_CHOOSE_SEARCH=${DISABLE_LLM_CHOOSE_SEARCH:-}
+      - DISABLE_LLM_QUERY_REPHRASE=${DISABLE_LLM_QUERY_REPHRASE:-}
+      - DISABLE_GENERATIVE_AI=${DISABLE_GENERATIVE_AI:-}
+      # Other services
+      - POSTGRES_HOST=relational_db
+      - POSTGRES_USER=kmuser
+      - POSTGRES_PASSWORD=Evergreen@2025!
+      - POSTGRES_DB=onyx
+      - VESPA_HOST=index
+      - REDIS_HOST=cache
+      # MinIO configuration
+      - S3_ENDPOINT_URL=http://minio:9000
+      - S3_AWS_ACCESS_KEY_ID=minioadmin
+      - S3_AWS_SECRET_ACCESS_KEY=minioadmin
+      - MODEL_SERVER_HOST=inference_model_server
+      - LOG_LEVEL=info
+      - DISABLE_TELEMETRY=true
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "6"
+    volumes:
+      - api_server_logs:/var/log
+
+  background:
+    image: onyxdotapp/onyx-backend:${IMAGE_TAG:-latest}
+    build:
+      context: ../../backend
+      dockerfile: Dockerfile
+    command: >
+      /bin/sh -c " if [ -f /etc/ssl/certs/custom-ca.crt ]; then
+        update-ca-certificates;
+      fi && /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf"
+    depends_on:
+      - relational_db
+      - index
+      - cache
+      - inference_model_server
+      - indexing_model_server
+    restart: unless-stopped
+    environment:
+      - GEN_AI_API_KEY=sk-566706aa2350423b8751a5380444b227
+      - POSTGRES_HOST=relational_db
+      - POSTGRES_USER=kmuser
+      - POSTGRES_PASSWORD=Evergreen@2025!
+      - POSTGRES_DB=onyx
+      - VESPA_HOST=index
+      - REDIS_HOST=cache
+      - S3_ENDPOINT_URL=http://minio:9000
+      - S3_AWS_ACCESS_KEY_ID=minioadmin
+      - S3_AWS_SECRET_ACCESS_KEY=minioadmin
+      - MODEL_SERVER_HOST=inference_model_server
+      - INDEXING_MODEL_SERVER_HOST=indexing_model_server
+      - LOG_LEVEL=info
+      - DISABLE_TELEMETRY=true
+      - USE_SEPARATE_BACKGROUND_WORKERS=false
+      - USE_LIGHTWEIGHT_BACKGROUND_WORKER=false
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - background_logs:/var/log
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "6"
+
+  web_server:
+    image: onyxdotapp/onyx-web-server:${IMAGE_TAG:-latest}
+    build:
+      context: ../../web
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_DISABLE_STREAMING=false
+        - NEXT_PUBLIC_NEW_CHAT_DIRECTS_TO_SAME_PERSONA=false
+    depends_on:
+      - api_server
+    restart: unless-stopped
+    environment:
+      - INTERNAL_URL=http://api_server:8080
+      - WEB_DOMAIN=${WEB_DOMAIN:-}
+
+  inference_model_server:
+    image: onyxdotapp/onyx-model-server:${IMAGE_TAG:-latest}
+    build:
+      context: ../../backend
+      dockerfile: Dockerfile.model_server
+    command: >
+      /bin/sh -c "exec uvicorn model_server.main:app --host 0.0.0.0 --port 9000"
+    restart: unless-stopped
+    environment:
+      - LOG_LEVEL=info
+    volumes:
+      - model_cache_huggingface:/root/.cache/huggingface/
+      - inference_model_server_logs:/var/log
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "6"
+
+  indexing_model_server:
+    image: onyxdotapp/onyx-model-server:${IMAGE_TAG:-latest}
+    build:
+      context: ../../backend
+      dockerfile: Dockerfile.model_server
+    command: >
+      /bin/sh -c "exec uvicorn model_server.main:app --host 0.0.0.0 --port 9000"
+    restart: unless-stopped
+    environment:
+      - INDEXING_ONLY=True
+      - LOG_LEVEL=info
+    volumes:
+      - indexing_huggingface_model_cache:/root/.cache/huggingface/
+      - indexing_model_server_logs:/var/log
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "6"
+
+  relational_db:
+    image: postgres:15-alpine
+    shm_size: 1g
+    command: -c 'max_connections=250'
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=kmuser
+      - POSTGRES_PASSWORD=Evergreen@2025!
+      - POSTGRES_DB=onyx
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_volume:/var/lib/postgresql/data
+
+  index:
+    image: vespaengine/vespa:8.526.15
+    restart: unless-stopped
+    environment:
+      - VESPA_SKIP_UPGRADE_CHECK=true
+    ports:
+      - "19071:19071"
+      - "8081:8081"
+    volumes:
+      - vespa_volume:/opt/vespa/var
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "6"
+
+  nginx:
+    image: nginx:1.23.4-alpine
+    restart: unless-stopped
+    depends_on:
+      - api_server
+      - web_server
+    environment:
+      - DOMAIN=localhost
+    ports:
+      - "80:80"
+      - "3000:80"
+    volumes:
+      - ../data/nginx:/etc/nginx/conf.d
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "6"
+    command: >
+      /bin/sh -c "dos2unix /etc/nginx/conf.d/run-nginx.sh  && /etc/nginx/conf.d/run-nginx.sh app.conf.template.dev"
+
+  cache:
+    image: redis:6.2-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --save "" --appendonly no
+
+  minio:
+    image: minio/minio:RELEASE.2023-09-04T19-57-37Z
+    restart: unless-stopped
+    ports:
+      - "9004:9000"
+      - "9005:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+      MINIO_DEFAULT_BUCKETS: onyx-file-store-bucket
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+volumes:
+  db_volume:
+  vespa_volume:
+  minio_data:
+  model_cache_huggingface:
+  indexing_huggingface_model_cache:
+  api_server_logs:
+  background_logs:
+  inference_model_server_logs:
+  indexing_model_server_logs:
