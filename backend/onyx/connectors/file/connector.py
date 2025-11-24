@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 from typing import IO
 
-from onyx.configs.app_configs import INDEX_BATCH_SIZE
+from backend.onyx.configs.app_configs import INDEX_BATCH_SIZE
 from onyx.configs.constants import DocumentSource
 from onyx.configs.constants import FileOrigin
 from onyx.connectors.cross_connector_utils.miscellaneous_utils import (

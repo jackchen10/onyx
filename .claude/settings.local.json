@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(claude mcp list)"
+      "Bash(claude mcp list)",
+      "Bash(cat /f/code/onyx/README.md)"
     ],
     "deny": []
   }
