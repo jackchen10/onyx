@@ -1,5 +1,6 @@
 import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { FiPlusCircle, FiPlus, FiX, FiFilter } from "react-icons/fi";
+import { VoiceInputButton } from "./VoiceInputButton";
 import { FiLoader } from "react-icons/fi";
 import { ChatInputOption } from "./ChatInputOption";
 import { MinimalPersonaSnapshot } from "@/app/admin/assistants/interfaces";
@@ -505,10 +506,9 @@ export function ChatInputBar({
                 {assistantTagOptions.map((currentAssistant, index) => (
                   <button
                     key={index}
-                    className={`px-2 ${
-                      tabbingIconIndex == index &&
+                    className={`px-2 ${tabbingIconIndex == index &&
                       "bg-neutral-200 dark:bg-neutral-800"
-                    } rounded items-center rounded-lg content-start flex gap-x-1 py-2 w-full hover:bg-neutral-200/90 dark:hover:bg-neutral-800/90 cursor-pointer`}
+                      } rounded items-center rounded-lg content-start flex gap-x-1 py-2 w-full hover:bg-neutral-200/90 dark:hover:bg-neutral-800/90 cursor-pointer`}
                     onClick={() => {
                       updatedTaggedAssistant(currentAssistant);
                     }}
@@ -528,10 +528,9 @@ export function ChatInputBar({
                 <a
                   key={assistantTagOptions.length}
                   target="_self"
-                  className={`${
-                    tabbingIconIndex == assistantTagOptions.length &&
+                  className={`${tabbingIconIndex == assistantTagOptions.length &&
                     "bg-neutral-200 dark:bg-neutral-800"
-                  } rounded rounded-lg px-3 flex gap-x-1 py-2 w-full items-center hover:bg-neutral-200/90 dark:hover:bg-neutral-800/90 cursor-pointer`}
+                    } rounded rounded-lg px-3 flex gap-x-1 py-2 w-full items-center hover:bg-neutral-200/90 dark:hover:bg-neutral-800/90 cursor-pointer`}
                   href="/assistants/new"
                 >
                   <FiPlus size={17} />
@@ -551,10 +550,9 @@ export function ChatInputBar({
                   (currentPrompt: InputPrompt, index: number) => (
                     <button
                       key={index}
-                      className={`px-2 ${
-                        tabbingIconIndex == index &&
+                      className={`px-2 ${tabbingIconIndex == index &&
                         "bg-background-dark/75 dark:bg-neutral-800/75"
-                      } rounded content-start flex gap-x-1 py-1.5 w-full hover:bg-background-dark/90 dark:hover:bg-neutral-800/90 cursor-pointer`}
+                        } rounded content-start flex gap-x-1 py-1.5 w-full hover:bg-background-dark/90 dark:hover:bg-neutral-800/90 cursor-pointer`}
                       onClick={() => {
                         updateInputPrompt(currentPrompt);
                       }}
@@ -570,10 +568,9 @@ export function ChatInputBar({
                 <a
                   key={filteredPrompts.length}
                   target="_self"
-                  className={`${
-                    tabbingIconIndex == filteredPrompts.length &&
+                  className={`${tabbingIconIndex == filteredPrompts.length &&
                     "bg-background-dark/75 dark:bg-neutral-800/75"
-                  } px-3 flex gap-x-1 py-2 w-full rounded-lg items-center hover:bg-background-dark/90 dark:hover:bg-neutral-800/90 cursor-pointer`}
+                    } px-3 flex gap-x-1 py-2 w-full rounded-lg items-center hover:bg-background-dark/90 dark:hover:bg-neutral-800/90 cursor-pointer`}
                   href="/chat/input-prompts"
                 >
                   <FiPlus size={17} />
@@ -644,11 +641,10 @@ export function ChatInputBar({
                 text-base
                 leading-6
                 placeholder:text-input-text
-                ${
-                  textAreaRef.current &&
+                ${textAreaRef.current &&
                   textAreaRef.current.scrollHeight > MAX_INPUT_HEIGHT
-                    ? "overflow-y-auto mt-2"
-                    : ""
+                  ? "overflow-y-auto mt-2"
+                  : ""
                 }
                 whitespace-normal
                 break-word
@@ -693,150 +689,150 @@ export function ChatInputBar({
               filterManager.selectedDocumentSets.length > 0 ||
               filterManager.selectedTags.length > 0 ||
               filterManager.selectedSources.length > 0) && (
-              <div className="flex bg-input-background gap-x-.5 px-2">
-                <div className="flex gap-x-1 px-2 overflow-visible overflow-x-scroll items-end miniscroll">
-                  {filterManager.selectedTags &&
-                    filterManager.selectedTags.map((tag, index) => (
-                      <SourceChip
-                        key={index}
-                        icon={<TagIcon size={12} />}
-                        title={`#${tag.tag_key}_${tag.tag_value}`}
-                        onRemove={() => {
-                          filterManager.setSelectedTags(
-                            filterManager.selectedTags.filter(
-                              (t) => t.tag_key !== tag.tag_key
-                            )
-                          );
-                        }}
-                      />
-                    ))}
+                <div className="flex bg-input-background gap-x-.5 px-2">
+                  <div className="flex gap-x-1 px-2 overflow-visible overflow-x-scroll items-end miniscroll">
+                    {filterManager.selectedTags &&
+                      filterManager.selectedTags.map((tag, index) => (
+                        <SourceChip
+                          key={index}
+                          icon={<TagIcon size={12} />}
+                          title={`#${tag.tag_key}_${tag.tag_value}`}
+                          onRemove={() => {
+                            filterManager.setSelectedTags(
+                              filterManager.selectedTags.filter(
+                                (t) => t.tag_key !== tag.tag_key
+                              )
+                            );
+                          }}
+                        />
+                      ))}
 
-                  {/* Unified file rendering section for both selected and current message files */}
-                  {allFiles.map((file, index) =>
-                    file.chatFileType === ChatFileType.IMAGE ? (
-                      <SourceChip
-                        key={`${file.source}-${file.id}-${index}`}
-                        icon={
-                          file.isUploading ? (
-                            <FiLoader className="animate-spin" />
-                          ) : (
-                            <img
-                              className="h-full py-.5 object-cover rounded-lg bg-background cursor-pointer"
-                              src={buildImgUrl(file.id)}
-                              alt={file.name || "File image"}
-                            />
-                          )
-                        }
-                        title={file.name}
-                        onRemove={() => {
-                          if (file.source === "selected") {
-                            removeSelectedFile(file.originalFile);
-                          } else {
-                            setCurrentMessageFiles(
-                              currentMessageFiles.filter(
-                                (fileInFilter) => fileInFilter.id !== file.id
-                              )
-                            );
+                    {/* Unified file rendering section for both selected and current message files */}
+                    {allFiles.map((file, index) =>
+                      file.chatFileType === ChatFileType.IMAGE ? (
+                        <SourceChip
+                          key={`${file.source}-${file.id}-${index}`}
+                          icon={
+                            file.isUploading ? (
+                              <FiLoader className="animate-spin" />
+                            ) : (
+                              <img
+                                className="h-full py-.5 object-cover rounded-lg bg-background cursor-pointer"
+                                src={buildImgUrl(file.id)}
+                                alt={file.name || "File image"}
+                              />
+                            )
                           }
-                        }}
-                      />
-                    ) : (
-                      <SourceChip
-                        key={`${file.source}-${file.id}-${index}`}
-                        icon={
-                          <FileIcon
-                            className={
-                              file.source === "current" ? "text-red-500" : ""
+                          title={file.name}
+                          onRemove={() => {
+                            if (file.source === "selected") {
+                              removeSelectedFile(file.originalFile);
+                            } else {
+                              setCurrentMessageFiles(
+                                currentMessageFiles.filter(
+                                  (fileInFilter) => fileInFilter.id !== file.id
+                                )
+                              );
                             }
-                            size={16}
-                          />
-                        }
-                        title={file.name}
+                          }}
+                        />
+                      ) : (
+                        <SourceChip
+                          key={`${file.source}-${file.id}-${index}`}
+                          icon={
+                            <FileIcon
+                              className={
+                                file.source === "current" ? "text-red-500" : ""
+                              }
+                              size={16}
+                            />
+                          }
+                          title={file.name}
+                          onRemove={() => {
+                            if (file.source === "selected") {
+                              removeSelectedFile(file.originalFile);
+                            } else {
+                              setCurrentMessageFiles(
+                                currentMessageFiles.filter(
+                                  (fileInFilter) => fileInFilter.id !== file.id
+                                )
+                              );
+                            }
+                          }}
+                        />
+                      )
+                    )}
+                    {selectedFolders.map((folder) => (
+                      <SourceChip
+                        key={folder.id}
+                        icon={<FolderIcon size={16} />}
+                        title={folder.name}
+                        onRemove={() => removeSelectedFolder(folder)}
+                      />
+                    ))}
+                    {filterManager.timeRange && (
+                      <SourceChip
+                        truncateTitle={false}
+                        key="time-range"
+                        icon={<CalendarIcon size={12} />}
+                        title={`${getFormattedDateRangeString(
+                          filterManager.timeRange.from,
+                          filterManager.timeRange.to
+                        )}`}
                         onRemove={() => {
-                          if (file.source === "selected") {
-                            removeSelectedFile(file.originalFile);
-                          } else {
-                            setCurrentMessageFiles(
-                              currentMessageFiles.filter(
-                                (fileInFilter) => fileInFilter.id !== file.id
+                          filterManager.setTimeRange(null);
+                        }}
+                      />
+                    )}
+                    {filterManager.selectedDocumentSets.length > 0 &&
+                      filterManager.selectedDocumentSets.map((docSet, index) => (
+                        <SourceChip
+                          key={`doc-set-${index}`}
+                          icon={<DocumentIcon2 size={16} />}
+                          title={docSet}
+                          onRemove={() => {
+                            filterManager.setSelectedDocumentSets(
+                              filterManager.selectedDocumentSets.filter(
+                                (ds) => ds !== docSet
                               )
                             );
+                          }}
+                        />
+                      ))}
+                    {filterManager.selectedSources.length > 0 &&
+                      filterManager.selectedSources.map((source, index) => (
+                        <SourceChip
+                          key={`source-${index}`}
+                          icon={
+                            <SourceIcon
+                              sourceType={source.internalName}
+                              iconSize={16}
+                            />
                           }
-                        }}
-                      />
-                    )
-                  )}
-                  {selectedFolders.map((folder) => (
-                    <SourceChip
-                      key={folder.id}
-                      icon={<FolderIcon size={16} />}
-                      title={folder.name}
-                      onRemove={() => removeSelectedFolder(folder)}
-                    />
-                  ))}
-                  {filterManager.timeRange && (
-                    <SourceChip
-                      truncateTitle={false}
-                      key="time-range"
-                      icon={<CalendarIcon size={12} />}
-                      title={`${getFormattedDateRangeString(
-                        filterManager.timeRange.from,
-                        filterManager.timeRange.to
-                      )}`}
-                      onRemove={() => {
-                        filterManager.setTimeRange(null);
-                      }}
-                    />
-                  )}
-                  {filterManager.selectedDocumentSets.length > 0 &&
-                    filterManager.selectedDocumentSets.map((docSet, index) => (
+                          title={source.displayName}
+                          onRemove={() => {
+                            filterManager.setSelectedSources(
+                              filterManager.selectedSources.filter(
+                                (s) => s.internalName !== source.internalName
+                              )
+                            );
+                          }}
+                        />
+                      ))}
+                    {selectedDocuments.length > 0 && (
                       <SourceChip
-                        key={`doc-set-${index}`}
-                        icon={<DocumentIcon2 size={16} />}
-                        title={docSet}
-                        onRemove={() => {
-                          filterManager.setSelectedDocumentSets(
-                            filterManager.selectedDocumentSets.filter(
-                              (ds) => ds !== docSet
-                            )
-                          );
+                        key="selected-documents"
+                        onClick={() => {
+                          toggleDocumentSidebar();
                         }}
+                        icon={<FileIcon size={16} />}
+                        title={`${selectedDocuments.length} selected`}
+                        onRemove={removeDocs}
                       />
-                    ))}
-                  {filterManager.selectedSources.length > 0 &&
-                    filterManager.selectedSources.map((source, index) => (
-                      <SourceChip
-                        key={`source-${index}`}
-                        icon={
-                          <SourceIcon
-                            sourceType={source.internalName}
-                            iconSize={16}
-                          />
-                        }
-                        title={source.displayName}
-                        onRemove={() => {
-                          filterManager.setSelectedSources(
-                            filterManager.selectedSources.filter(
-                              (s) => s.internalName !== source.internalName
-                            )
-                          );
-                        }}
-                      />
-                    ))}
-                  {selectedDocuments.length > 0 && (
-                    <SourceChip
-                      key="selected-documents"
-                      onClick={() => {
-                        toggleDocumentSidebar();
-                      }}
-                      icon={<FileIcon size={16} />}
-                      title={`${selectedDocuments.length} selected`}
-                      onRemove={removeDocs}
-                    />
-                  )}
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
             <div className="flex pr-4 pb-2 justify-between bg-input-background items-center w-full ">
               <div className="space-x-1 flex  px-4 ">
@@ -862,7 +858,7 @@ export function ChatInputBar({
                     availableSources={availableSources}
                     availableDocumentSets={
                       selectedAssistant.document_sets &&
-                      selectedAssistant.document_sets.length > 0
+                        selectedAssistant.document_sets.length > 0
                         ? selectedAssistant.document_sets
                         : availableDocumentSets
                     }
@@ -883,17 +879,24 @@ export function ChatInputBar({
                     setProSearchEnabled={setProSearchEnabled}
                   />
                 )}
+
+                <VoiceInputButton
+                  onTranscript={(text: string) => {
+                    setMessage(message ? `${message} ${text}` : text);
+                  }}
+                  className="mr-2"
+                />
+
                 <button
                   id="onyx-chat-input-send-button"
-                  className={`cursor-pointer ${
-                    chatState == "streaming" ||
+                  className={`cursor-pointer ${chatState == "streaming" ||
                     chatState == "toolBuilding" ||
                     chatState == "loading"
-                      ? chatState != "streaming"
-                        ? "bg-neutral-500 dark:bg-neutral-400 "
-                        : "bg-neutral-900 dark:bg-neutral-50"
-                      : "bg-red-200"
-                  } h-[22px] w-[22px] rounded-full`}
+                    ? chatState != "streaming"
+                      ? "bg-neutral-500 dark:bg-neutral-400 "
+                      : "bg-neutral-900 dark:bg-neutral-50"
+                    : "bg-red-200"
+                    } h-[22px] w-[22px] rounded-full`}
                   onClick={() => {
                     if (chatState == "streaming") {
                       stopGenerating();
@@ -903,8 +906,8 @@ export function ChatInputBar({
                   }}
                 >
                   {chatState == "streaming" ||
-                  chatState == "toolBuilding" ||
-                  chatState == "loading" ? (
+                    chatState == "toolBuilding" ||
+                    chatState == "loading" ? (
                     <StopGeneratingIcon
                       size={8}
                       className="text-neutral-50 dark:text-neutral-900 m-auto text-white flex-none"
@@ -912,11 +915,10 @@ export function ChatInputBar({
                   ) : (
                     <SendIcon
                       size={22}
-                      className={`text-neutral-50 dark:text-neutral-900 p-1 my-auto rounded-full ${
-                        chatState == "input" && message
-                          ? "bg-neutral-900 dark:bg-neutral-50"
-                          : "bg-neutral-500 dark:bg-neutral-400"
-                      }`}
+                      className={`text-neutral-50 dark:text-neutral-900 p-1 my-auto rounded-full ${chatState == "input" && message
+                        ? "bg-neutral-900 dark:bg-neutral-50"
+                        : "bg-neutral-500 dark:bg-neutral-400"
+                        }`}
                     />
                   )}
                 </button>
@@ -925,6 +927,6 @@ export function ChatInputBar({
           </div>
         </div>
       </div>
-    </div>
+    </div >
   );
 }

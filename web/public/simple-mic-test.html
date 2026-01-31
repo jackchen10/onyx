@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>最简单的语音测试</title>
+    <style>
+        body {
+            font-family: Arial;
+            padding: 50px;
+            text-align: center;
+        }
+
+        button {
+            font-size: 20px;
+            padding: 20px 40px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #45a049;
+        }
+
+        #output {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f0f0f0;
+            border-radius: 5px;
+            min-height: 100px;
+        }
+
+        .error {
+            color: red;
+        }
+
+        .success {
+            color: green;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>🎤 最简单的语音测试</h1>
+    <p>这是最基础的测试，如果这个都不行，说明环境确实有限制</p>
+
+    <button onclick="testMicrophone()">点击测试麦克风</button>
+
+    <div id="output"></div>
+
+    <script>
+        async function testMicrophone() {
+            const output = document.getElementById('output');
+            output.innerHTML = '<p>正在测试...</p>';
+
+            try {
+                // 测试 1: MediaDevices
+                output.innerHTML += '<p>测试 1: 请求麦克风权限...</p>';
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                output.innerHTML += '<p class="success">✅ 成功！麦克风权限已授予</p>';
+
+                stream.getTracks().forEach(track => track.stop());
+
+                // 测试 2: Speech Recognition
+                output.innerHTML += '<p>测试 2: 启动语音识别...</p>';
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+                if (!SpeechRecognition) {
+                    output.innerHTML += '<p class="error">❌ 浏览器不支持语音识别</p>';
+                    return;
+                }
+
+                const recognition = new SpeechRecognition();
+                recognition.lang = 'zh-CN';
+
+                recognition.onstart = () => {
+                    output.innerHTML += '<p class="success">✅ 语音识别已启动！请说话...</p>';
+                };
+
+                recognition.onresult = (event) => {
+                    const transcript = event.results[0][0].transcript;
+                    output.innerHTML += `<p class="success">✅ 识别结果: "${transcript}"</p>`;
+                    recognition.stop();
+                };
+
+                recognition.onerror = (event) => {
+                    output.innerHTML += `<p class="error">❌ 错误: ${event.error}</p>`;
+                };
+
+                recognition.start();
+
+            } catch (err) {
+                output.innerHTML += `<p class="error">❌ 失败: ${err.name} - ${err.message}</p>`;
+
+                if (err.name === 'NotAllowedError') {
+                    output.innerHTML += `
+                        <h3>麦克风权限被拒绝</h3>
+                        <p>可能的原因：</p>
+                        <ul style="text-align: left; display: inline-block;">
+                            <li>Windows 系统设置阻止了麦克风访问</li>
+                            <li>Chrome 扩展阻止了权限请求</li>
+                            <li>麦克风被其他应用占用</li>
+                            <li>企业策略限制</li>
+                        </ul>
+                    `;
+                }
+            }
+        }
+    </script>
+</body>
+
+</html>

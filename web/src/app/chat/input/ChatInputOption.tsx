@@ -29,13 +29,15 @@ export const ChatInputOption: React.FC<ChatInputOptionProps> = ({
   onClick,
   minimize,
 }) => {
-  const componentRef = useRef<HTMLButtonElement>(null);
+  const componentRef = useRef<HTMLDivElement>(null);
 
   return (
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <button
+          <div
+            role="button"
+            tabIndex={0}
             ref={componentRef}
             className={`
             relative 
@@ -52,20 +54,24 @@ export const ChatInputOption: React.FC<ChatInputOptionProps> = ({
             dark:hover:text-neutral-50
             py-1.5
             px-2
-            ${
-              flexPriority === "shrink" &&
+            ${flexPriority === "shrink" &&
               "flex-shrink-100 flex-grow-0 flex-basis-auto min-w-[30px] whitespace-nowrap overflow-hidden"
-            }
-            ${
-              flexPriority === "second" &&
+              }
+            ${flexPriority === "second" &&
               "flex-shrink flex-basis-0 min-w-[30px] whitespace-nowrap overflow-hidden"
-            }
-            ${
-              flexPriority === "stiff" &&
+              }
+            ${flexPriority === "stiff" &&
               "flex-none whitespace-nowrap overflow-hidden"
-            }
+              }
           `}
             onClick={onClick}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onClick && onClick();
+              }
+            }}
+            aria-label={name || 'Chat input option'}
           >
             <Icon size={size} className="h-4 w-4 my-auto  flex-none" />
             <div className={`flex items-center ${minimize && "mobile:hidden"}`}>
@@ -76,10 +82,11 @@ export const ChatInputOption: React.FC<ChatInputOptionProps> = ({
                 <ChevronDownIcon className="flex-none ml-1" size={size - 4} />
               )}
             </div>
-          </button>
+          </div>
         </TooltipTrigger>
         <TooltipContent>{tooltipContent}</TooltipContent>
       </Tooltip>
     </TooltipProvider>
   );
 };
+

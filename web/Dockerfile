@@ -2,10 +2,10 @@ FROM node:20-alpine AS base
 
 LABEL com.onyx.maintainer="founders@onyx.app"
 LABEL com.onyx.description="This image is the web/frontend container of Onyx which \
-contains code for both the Community and Enterprise editions of Onyx. If you do not \
-have a contract or agreement with DanswerAI, you are not permitted to use the Enterprise \
-Edition features outside of personal development or testing purposes. Please reach out to \
-founders@onyx.app for more information. Please visit https://github.com/onyx-dot-app/onyx"
+    contains code for both the Community and Enterprise editions of Onyx. If you do not \
+    have a contract or agreement with DanswerAI, you are not permitted to use the Enterprise \
+    Edition features outside of personal development or testing purposes. Please reach out to \
+    founders@onyx.app for more information. Please visit https://github.com/onyx-dot-app/onyx"
 
 # Default ONYX_VERSION, typically overriden during builds by GitHub Actions.
 ARG ONYX_VERSION=0.0.0-dev
@@ -14,8 +14,6 @@ RUN echo "ONYX_VERSION: ${ONYX_VERSION}"
 
 # Step 1. Install dependencies + rebuild the source code only when needed
 FROM base AS builder
-# Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
-RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 # Add NODE_OPTIONS argument
@@ -24,14 +22,17 @@ ARG NODE_OPTIONS
 # pull in source code / package.json / package-lock.json
 COPY . .
 
-# Install dependencies
-RUN npm ci
+# Install dependencies (use install instead of ci to be more forgiving)
+RUN npm install --legacy-peer-deps --ignore-scripts || npm install --force --ignore-scripts
 
 # needed to get the `standalone` dir we expect later
 ENV NEXT_PRIVATE_STANDALONE=true
 
 # Disable automatic telemetry collection
 ENV NEXT_TELEMETRY_DISABLED=1
+
+# Disable sharp-based image optimization to avoid Alpine compatibility issues
+ENV NEXT_SHARP_PATH=/tmp/non-existent
 
 # Environment variables must be present at build time
 # https://github.com/vercel/next.js/discussions/14030

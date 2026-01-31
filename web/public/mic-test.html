@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>麦克风测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .error {
+            color: #f44336;
+            padding: 10px;
+            margin: 10px 0;
+            background: #ffebee;
+            border-radius: 5px;
+        }
+        .success {
+            color: #4CAF50;
+            padding: 10px;
+            margin: 10px 0;
+            background: #e8f5e9;
+            border-radius: 5px;
+        }
+        .info {
+            color: #2196F3;
+            padding: 10px;
+            margin: 10px 0;
+            background: #e3f2fd;
+            border-radius: 5px;
+        }
+        #log {
+            background: #263238;
+            color: #aed581;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎤 麦克风权限测试工具</h1>
+        <p>这个页面可以帮助诊断麦克风权限问题</p>
+        
+        <div id="status"></div>
+        
+        <button id="testMediaDevices">测试 MediaDevices API</button>
+        <button id="testSpeechRecognition">测试 Speech Recognition</button>
+        <button id="clearLog">清除日志</button>
+        
+        <div id="log"></div>
+    </div>
+
+    <script>
+        const log = document.getElementById('log');
+        const status = document.getElementById('status');
+        
+        function addLog(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            log.innerHTML += `<div>[${timestamp}] ${message}</div>`;
+            log.scrollTop = log.scrollHeight;
+        }
+        
+        function showStatus(message, type) {
+            status.innerHTML = `<div class="${type}">${message}</div>`;
+        }
+        
+        // 测试 1: MediaDevices API
+        document.getElementById('testMediaDevices').addEventListener('click', async () => {
+            addLog('=== 开始测试 MediaDevices API ===');
+            
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                addLog('❌ 不支持 MediaDevices API', 'error');
+                showStatus('浏览器不支持 MediaDevices API', 'error');
+                return;
+            }
+            
+            addLog('✅ MediaDevices API 可用');
+            
+            try {
+                addLog('正在请求麦克风权限...');
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                addLog('✅ 成功获取麦克风访问权限！');
+                showStatus('✅ 麦克风权限正常！MediaDevices API 可以访问麦克风', 'success');
+                
+                // 获取音频轨道信息
+                const audioTracks = stream.getAudioTracks();
+                addLog(`麦克风设备信息: ${audioTracks[0].label}`);
+                
+                // 停止所有轨道
+                stream.getTracks().forEach(track => track.stop());
+                addLog('已释放麦克风资源');
+            } catch (err) {
+                addLog(`❌ 错误: ${err.name} - ${err.message}`, 'error');
+                showStatus(`❌ 麦克风权限被拒绝: ${err.name} - ${err.message}`, 'error');
+                
+                if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                    addLog('原因: 用户拒绝了权限请求，或系统级权限被阻止');
+                    addLog('请检查: 1) Windows 隐私设置 2) Chrome 网站设置 3) 麦克风是否被其他应用占用');
+                } else if (err.name === 'NotFoundError') {
+                    addLog('原因: 未找到麦克风设备');
+                    addLog('请检查: 1) 麦克风是否已插入 2) 设备管理器中是否识别');
+                }
+            }
+        });
+        
+        // 测试 2: Speech Recognition
+        document.getElementById('testSpeechRecognition').addEventListener('click', () => {
+            addLog('=== 开始测试 Speech Recognition ===');
+            
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            
+            if (!SpeechRecognition) {
+                addLog('❌ 不支持 Speech Recognition API', 'error');
+                showStatus('浏览器不支持语音识别（请使用 Chrome/Edge）', 'error');
+                return;
+            }
+            
+            addLog('✅ Speech Recognition API 可用');
+            
+            try {
+                const recognition = new SpeechRecognition();
+                recognition.lang = 'zh-CN';
+                
+                recognition.onstart = () => {
+                    addLog('✅ 语音识别已启动');
+                    showStatus('✅ 语音识别正常启动！请说话测试...', 'success');
+                };
+                
+                recognition.onresult = (event) => {
+                    const transcript = event.results[0][0].transcript;
+                    addLog(`识别结果: "${transcript}"`);
+                };
+                
+                recognition.onerror = (event) => {
+                    addLog(`❌ 语音识别错误: ${event.error}`, 'error');
+                    showStatus(`❌ 语音识别错误: ${event.error}`, 'error');
+                    
+                    if (event.error === 'not-allowed') {
+                        addLog('原因: 麦克风权限被拒绝');
+                        addLog('请检查: 1) Windows 隐私设置 2) Chrome 网站设置');
+                    }
+                };
+                
+                recognition.onend = () => {
+                    addLog('语音识别已结束');
+                };
+                
+                addLog('正在启动语音识别...');
+                recognition.start();
+                
+            } catch (err) {
+                addLog(`❌ 启动失败: ${err.message}`, 'error');
+                showStatus(`❌ 启动语音识别失败: ${err.message}`, 'error');
+            }
+        });
+        
+        // 清除日志
+        document.getElementById('clearLog').addEventListener('click', () => {
+            log.innerHTML = '';
+            status.innerHTML = '';
+        });
+        
+        // 页面加载时显示基本信息
+        window.addEventListener('load', () => {
+            addLog('=== 麦克风测试工具已就绪 ===');
+            addLog(`浏览器: ${navigator.userAgent}`);
+            addLog(`当前页面: ${window.location.href}`);
+            addLog('');
+            addLog('请点击上方按钮开始测试');
+        });
+    </script>
+</body>
+</html>
